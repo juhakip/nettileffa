@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.database import Base, get_db
-from app.models import Movie, Genre, movie_genre  # Import models to register with Base
+from app.models import Movie, Genre, Actor, Director, movie_genre, movie_actor  # Import models to register with Base
 
 # Use in-memory SQLite for tests with StaticPool to ensure same database across connections
 TEST_DATABASE_URL = "sqlite:///:memory:"

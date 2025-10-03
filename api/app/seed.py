@@ -6,7 +6,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, init_db, engine
-from .models import Movie, Genre, Base
+from .models import Movie, Genre, Actor, Director, Base
 
 
 def load_movies_from_json(json_path: str) -> list[dict]:
@@ -44,8 +44,10 @@ def seed_database(json_path: str = None):
     db: Session = SessionLocal()
 
     try:
-        # Keep track of genres to avoid duplicates
+        # Keep track of entities to avoid duplicates
         genre_cache = {}
+        director_cache = {}
+        actor_cache = {}
 
         for idx, movie_data in enumerate(movies_data, 1):
             # Get or create genres
@@ -60,6 +62,45 @@ def seed_database(json_path: str = None):
                     genre_cache[genre_name] = genre
                 genre_objects.append(genre_cache[genre_name])
 
+            # Get or create director
+            director_obj = None
+            director_data = movie_data.get("director")
+            if director_data:
+                director_key = (director_data["firstName"], director_data["lastName"])
+                if director_key not in director_cache:
+                    director = db.query(Director).filter(
+                        Director.first_name == director_data["firstName"],
+                        Director.last_name == director_data["lastName"],
+                    ).first()
+                    if not director:
+                        director = Director(
+                            first_name=director_data["firstName"],
+                            last_name=director_data["lastName"],
+                        )
+                        db.add(director)
+                        db.flush()
+                    director_cache[director_key] = director
+                director_obj = director_cache[director_key]
+
+            # Get or create actors
+            actor_objects = []
+            for actor_data in movie_data.get("actors", []):
+                actor_key = (actor_data["firstName"], actor_data["lastName"])
+                if actor_key not in actor_cache:
+                    actor = db.query(Actor).filter(
+                        Actor.first_name == actor_data["firstName"],
+                        Actor.last_name == actor_data["lastName"],
+                    ).first()
+                    if not actor:
+                        actor = Actor(
+                            first_name=actor_data["firstName"],
+                            last_name=actor_data["lastName"],
+                        )
+                        db.add(actor)
+                        db.flush()
+                    actor_cache[actor_key] = actor
+                actor_objects.append(actor_cache[actor_key])
+
             # Create movie (map camelCase ageLimit to snake_case age_limit)
             movie = Movie(
                 name=movie_data["name"],
@@ -68,6 +109,8 @@ def seed_database(json_path: str = None):
                 rating=movie_data.get("rating", 3),
                 synopsis=movie_data.get("synopsis"),
                 genres=genre_objects,
+                director=director_obj,
+                actors=actor_objects,
             )
             db.add(movie)
 
@@ -80,7 +123,11 @@ def seed_database(json_path: str = None):
 
         # Print statistics
         genre_count = db.query(Genre).count()
+        director_count = db.query(Director).count()
+        actor_count = db.query(Actor).count()
         print(f"✓ Created {genre_count} unique genres")
+        print(f"✓ Created {director_count} unique directors")
+        print(f"✓ Created {actor_count} unique actors")
 
     except Exception as e:
         db.rollback()

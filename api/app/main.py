@@ -7,7 +7,7 @@ from sqlalchemy import or_, func
 from typing import Optional
 
 from .database import get_db, init_db
-from .models import Movie, Genre
+from .models import Movie, Genre, Actor, Director
 from .schemas import MovieCreate, MovieResponse, MoviesListResponse
 
 # Initialize FastAPI app
@@ -104,6 +104,8 @@ def create_movie(movie_data: MovieCreate, db: Session = Depends(get_db)):
     - **rating**: Rating 1-5 (required)
     - **synopsis**: Movie synopsis (optional)
     - **genres**: List of genre names (required, min 1)
+    - **actors**: List of actors (optional)
+    - **director**: Movie director (optional)
     """
     # Create or get genres
     genre_objects = []
@@ -114,6 +116,35 @@ def create_movie(movie_data: MovieCreate, db: Session = Depends(get_db)):
             db.add(genre)
         genre_objects.append(genre)
 
+    # Create or get director
+    director_obj = None
+    if movie_data.director:
+        director_obj = db.query(Director).filter(
+            Director.first_name == movie_data.director.first_name,
+            Director.last_name == movie_data.director.last_name,
+        ).first()
+        if not director_obj:
+            director_obj = Director(
+                first_name=movie_data.director.first_name,
+                last_name=movie_data.director.last_name,
+            )
+            db.add(director_obj)
+
+    # Create or get actors
+    actor_objects = []
+    for actor_data in movie_data.actors:
+        actor = db.query(Actor).filter(
+            Actor.first_name == actor_data.first_name,
+            Actor.last_name == actor_data.last_name,
+        ).first()
+        if not actor:
+            actor = Actor(
+                first_name=actor_data.first_name,
+                last_name=actor_data.last_name,
+            )
+            db.add(actor)
+        actor_objects.append(actor)
+
     # Create movie
     movie = Movie(
         name=movie_data.name,
@@ -122,9 +153,88 @@ def create_movie(movie_data: MovieCreate, db: Session = Depends(get_db)):
         rating=movie_data.rating,
         synopsis=movie_data.synopsis,
         genres=genre_objects,
+        director=director_obj,
+        actors=actor_objects,
     )
 
     db.add(movie)
+    db.commit()
+    db.refresh(movie)
+
+    return MovieResponse.from_orm_movie(movie)
+
+
+@app.get("/api/movies/{movie_id}", response_model=MovieResponse)
+def get_movie(movie_id: int, db: Session = Depends(get_db)):
+    """Get a single movie by ID."""
+    movie = db.query(Movie).filter(Movie.id == movie_id).first()
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    return MovieResponse.from_orm_movie(movie)
+
+
+@app.put("/api/movies/{movie_id}", response_model=MovieResponse)
+def update_movie(movie_id: int, movie_data: MovieCreate, db: Session = Depends(get_db)):
+    """
+    Update an existing movie.
+
+    - **movie_id**: ID of the movie to update
+    - All other fields same as create
+    """
+    # Find existing movie
+    movie = db.query(Movie).filter(Movie.id == movie_id).first()
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    # Update basic fields
+    movie.name = movie_data.name
+    movie.year = movie_data.year
+    movie.age_limit = movie_data.age_limit
+    movie.rating = movie_data.rating
+    movie.synopsis = movie_data.synopsis
+
+    # Update genres
+    genre_objects = []
+    for genre_name in movie_data.genres:
+        genre = db.query(Genre).filter(Genre.name == genre_name).first()
+        if not genre:
+            genre = Genre(name=genre_name)
+            db.add(genre)
+        genre_objects.append(genre)
+    movie.genres = genre_objects
+
+    # Update director
+    if movie_data.director:
+        director_obj = db.query(Director).filter(
+            Director.first_name == movie_data.director.first_name,
+            Director.last_name == movie_data.director.last_name,
+        ).first()
+        if not director_obj:
+            director_obj = Director(
+                first_name=movie_data.director.first_name,
+                last_name=movie_data.director.last_name,
+            )
+            db.add(director_obj)
+        movie.director = director_obj
+    else:
+        movie.director = None
+
+    # Update actors
+    actor_objects = []
+    for actor_data in movie_data.actors:
+        actor = db.query(Actor).filter(
+            Actor.first_name == actor_data.first_name,
+            Actor.last_name == actor_data.last_name,
+        ).first()
+        if not actor:
+            actor = Actor(
+                first_name=actor_data.first_name,
+                last_name=actor_data.last_name,
+            )
+            db.add(actor)
+        actor_objects.append(actor)
+    movie.actors = actor_objects
+
     db.commit()
     db.refresh(movie)
 

@@ -49,6 +49,39 @@ export async function createMovie(data: MovieCreate): Promise<Movie> {
 }
 
 /**
+ * Get a single movie by ID
+ */
+export async function getMovie(id: number): Promise<Movie> {
+  const response = await fetch(`${API_BASE_URL}/api/movies/${id}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch movie: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Update an existing movie
+ */
+export async function updateMovie(id: number, data: MovieCreate): Promise<Movie> {
+  const response = await fetch(`${API_BASE_URL}/api/movies/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Failed to update movie: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Get all unique genres
  */
 export async function getGenres(): Promise<string[]> {

@@ -17,19 +17,47 @@ class GenreResponse(GenreBase):
         from_attributes = True
 
 
+class PersonBase(BaseModel):
+    """Base schema for Person (Actor/Director)."""
+    first_name: str = Field(..., alias="firstName", min_length=1, max_length=100)
+    last_name: str = Field(..., alias="lastName", min_length=1, max_length=100)
+
+    class Config:
+        populate_by_name = True  # Allow both snake_case and camelCase
+
+
+class ActorResponse(PersonBase):
+    """Actor response schema."""
+    id: int
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class DirectorResponse(PersonBase):
+    """Director response schema."""
+    id: int
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
 class MovieBase(BaseModel):
     """Base schema for Movie with shared fields."""
     name: str = Field(..., min_length=1, max_length=255)
-    year: int = Field(..., ge=1800, le=2100)
+    year: int = Field(..., ge=1895, le=3000)
     age_limit: int = Field(..., ge=0, le=18)
-    rating: int = Field(..., ge=1, le=5)
+    rating: int = Field(..., ge=0, le=5)
     synopsis: Optional[str] = None
     genres: List[str] = Field(..., min_length=1)
 
 
 class MovieCreate(MovieBase):
     """Schema for creating a new movie."""
-    pass
+    actors: List[PersonBase] = Field(default_factory=list)
+    director: Optional[PersonBase] = None
 
 
 class MovieResponse(BaseModel):
@@ -41,6 +69,8 @@ class MovieResponse(BaseModel):
     rating: int
     synopsis: Optional[str]
     genres: List[str]
+    actors: List[PersonBase]
+    director: Optional[PersonBase]
 
     class Config:
         from_attributes = True
@@ -56,6 +86,14 @@ class MovieResponse(BaseModel):
             rating=movie.rating,
             synopsis=movie.synopsis,
             genres=[genre.name for genre in movie.genres],
+            actors=[
+                PersonBase(first_name=actor.first_name, last_name=actor.last_name)
+                for actor in movie.actors
+            ],
+            director=PersonBase(
+                first_name=movie.director.first_name,
+                last_name=movie.director.last_name,
+            ) if movie.director else None,
         )
 
 

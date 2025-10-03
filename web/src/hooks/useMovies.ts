@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMovies, createMovie, getGenres } from "../lib/api";
+import { getMovies, getMovie, createMovie, updateMovie, getGenres } from "../lib/api";
 import type { MovieFilters, MovieCreate } from "../lib/schemas";
 
 /**
@@ -27,6 +27,33 @@ export function useCreateMovie() {
     onSuccess: () => {
       // Invalidate movies queries to refetch
       queryClient.invalidateQueries({ queryKey: ["movies"] });
+    },
+  });
+}
+
+/**
+ * Hook to fetch a single movie
+ */
+export function useMovie(id: number) {
+  return useQuery({
+    queryKey: ["movies", id],
+    queryFn: () => getMovie(id),
+    enabled: !!id, // Only run query if id is truthy
+  });
+}
+
+/**
+ * Hook to update a movie
+ */
+export function useUpdateMovie() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: MovieCreate }) => updateMovie(id, data),
+    onSuccess: (_, variables) => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ["movies"] });
+      queryClient.invalidateQueries({ queryKey: ["movies", variables.id] });
     },
   });
 }
