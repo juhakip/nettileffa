@@ -2,6 +2,7 @@
  * SearchBar component - search and sort controls
  */
 
+import React from "react";
 import { useState, useEffect } from "react";
 
 interface SearchBarProps {

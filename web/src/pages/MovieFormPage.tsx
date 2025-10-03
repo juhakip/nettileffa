@@ -9,6 +9,7 @@ import { movieCreateSchema, type MovieCreate, type Person } from "../lib/schemas
 import { useCreateMovie, useUpdateMovie, useMovie, useGenres } from "../hooks/useMovies";
 import { useState, useEffect } from "react";
 import { searchActors, searchDirectors } from "../lib/api";
+import React from "react";
 
 export function MovieFormPage() {
   const navigate = useNavigate();

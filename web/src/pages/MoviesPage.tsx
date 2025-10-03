@@ -8,6 +8,7 @@ import { useMovies } from "../hooks/useMovies";
 import { MovieList } from "../components/MovieList";
 import { SearchBar } from "../components/SearchBar";
 import type { MovieFilters } from "../lib/schemas";
+import React from "react";
 
 export function MoviesPage() {
   const [filters, setFilters] = useState<MovieFilters>({

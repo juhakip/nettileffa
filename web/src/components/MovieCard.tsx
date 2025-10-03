@@ -4,6 +4,7 @@
 
 import { useNavigate } from "react-router-dom";
 import type { Movie } from "../lib/schemas";
+import React from "react";
 
 interface MovieCardProps {
   movie: Movie;

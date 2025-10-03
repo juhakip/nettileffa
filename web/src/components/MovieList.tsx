@@ -2,6 +2,7 @@
  * MovieList component - displays a grid of movies
  */
 
+import React from "react";
 import type { Movie } from "../lib/schemas";
 import { MovieCard } from "./MovieCard";
 
