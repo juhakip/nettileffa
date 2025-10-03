@@ -1,0 +1,13 @@
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# Python virtual environments and caches (additional to api/.gitignore)
+__pycache__/
+*.py[cod]
+venv/
+
+# Node modules (additional to web/.gitignore)
+node_modules/
