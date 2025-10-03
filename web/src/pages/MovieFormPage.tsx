@@ -5,9 +5,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link, useParams } from "react-router-dom";
-import { movieCreateSchema, type MovieCreate } from "../lib/schemas";
+import { movieCreateSchema, type MovieCreate, type Person } from "../lib/schemas";
 import { useCreateMovie, useUpdateMovie, useMovie, useGenres } from "../hooks/useMovies";
 import { useState, useEffect } from "react";
+import { searchActors, searchDirectors } from "../lib/api";
 
 export function MovieFormPage() {
   const navigate = useNavigate();
@@ -24,6 +25,26 @@ export function MovieFormPage() {
   const [genres, setGenres] = useState<string[]>([]);
   const [rating, setRating] = useState(0);
   const [ageLimit, setAgeLimit] = useState(0);
+
+  // Actor state
+  const [actorSearch, setActorSearch] = useState("");
+  const [actorResults, setActorResults] = useState<Person[]>([]);
+  const [selectedActors, setSelectedActors] = useState<Person[]>([]);
+  const [showActorResults, setShowActorResults] = useState(false);
+
+  // Director state
+  const [directorSearch, setDirectorSearch] = useState("");
+  const [directorResults, setDirectorResults] = useState<Person[]>([]);
+  const [selectedDirector, setSelectedDirector] = useState<Person | null>(null);
+  const [showDirectorResults, setShowDirectorResults] = useState(false);
+  const [directorFirstName, setDirectorFirstName] = useState("");
+  const [directorLastName, setDirectorLastName] = useState("");
+  const [showDirectorForm, setShowDirectorForm] = useState(false);
+
+  // New actor form state
+  const [actorFirstName, setActorFirstName] = useState("");
+  const [actorLastName, setActorLastName] = useState("");
+  const [showActorForm, setShowActorForm] = useState(false);
 
   const {
     register,
@@ -50,12 +71,46 @@ export function MovieFormPage() {
         rating: movie.rating,
         synopsis: movie.synopsis || undefined,
         genres: movie.genres,
+        actors: movie.actors || [],
+        director: movie.director || undefined,
       });
       setGenres(movie.genres);
       setRating(movie.rating);
       setAgeLimit(movie.age_limit);
+      setSelectedActors(movie.actors || []);
+      setSelectedDirector(movie.director || null);
     }
   }, [movie, isEditMode, reset]);
+
+  // Search actors with debounce
+  useEffect(() => {
+    if (actorSearch.length < 2) {
+      setActorResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const results = await searchActors(actorSearch);
+      setActorResults(results);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [actorSearch]);
+
+  // Search directors with debounce
+  useEffect(() => {
+    if (directorSearch.length < 2) {
+      setDirectorResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const results = await searchDirectors(directorSearch);
+      setDirectorResults(results);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [directorSearch]);
 
   const addGenre = (genre?: string) => {
     const genreToAdd = genre || genreInput.trim();
@@ -81,12 +136,73 @@ export function MovieFormPage() {
     }
   };
 
+  const addActor = (actor: Person) => {
+    const exists = selectedActors.some(
+      (a) => a.firstName === actor.firstName && a.lastName === actor.lastName
+    );
+    if (!exists) {
+      const newActors = [...selectedActors, actor];
+      setSelectedActors(newActors);
+      setValue("actors", newActors);
+    }
+    setActorSearch("");
+    setShowActorResults(false);
+  };
+
+  const removeActor = (actor: Person) => {
+    const newActors = selectedActors.filter(
+      (a) => !(a.firstName === actor.firstName && a.lastName === actor.lastName)
+    );
+    setSelectedActors(newActors);
+    setValue("actors", newActors);
+  };
+
+  const selectDirector = (director: Person) => {
+    setSelectedDirector(director);
+    setValue("director", director);
+    setDirectorSearch("");
+    setShowDirectorResults(false);
+  };
+
+  const addNewDirector = () => {
+    if (directorFirstName.trim() && directorLastName.trim()) {
+      const newDirector = {
+        firstName: directorFirstName.trim(),
+        lastName: directorLastName.trim(),
+      };
+      setSelectedDirector(newDirector);
+      setValue("director", newDirector);
+      setDirectorFirstName("");
+      setDirectorLastName("");
+      setShowDirectorForm(false);
+    }
+  };
+
+  const addNewActor = () => {
+    if (actorFirstName.trim() && actorLastName.trim()) {
+      const newActor = {
+        firstName: actorFirstName.trim(),
+        lastName: actorLastName.trim(),
+      };
+      addActor(newActor);
+      setActorFirstName("");
+      setActorLastName("");
+      setShowActorForm(false);
+    }
+  };
+
   const onSubmit = async (data: MovieCreate) => {
     try {
+      const submitData = {
+        ...data,
+        actors: selectedActors,
+        director: selectedDirector || undefined,
+      };
+
       if (isEditMode && movieId) {
-        await updateMovie.mutateAsync({ id: movieId, data });
+        await updateMovie.mutateAsync({ id: movieId, data: submitData });
       } else {
-        await createMovie.mutateAsync(data);
+        await createMovie.mutateAsync(submitData);
       }
       navigate("/");
     } catch (error) {
@@ -331,6 +447,210 @@ export function MovieFormPage() {
             />
             {errors.synopsis && (
               <p className="mt-1 text-sm text-red-600">{errors.synopsis.message}</p>
+            )}
+          </div>
+
+          {/* Director */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Director
+            </label>
+
+            {selectedDirector ? (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full flex items-center gap-2">
+                  {selectedDirector.firstName} {selectedDirector.lastName}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDirector(null);
+                      setValue("director", undefined);
+                    }}
+                    className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+            ) : showDirectorForm ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={directorFirstName}
+                    onChange={(e) => setDirectorFirstName(e.target.value)}
+                    placeholder="First name"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={directorLastName}
+                    onChange={(e) => setDirectorLastName(e.target.value)}
+                    placeholder="Last name"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={addNewDirector}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDirectorForm(false);
+                      setDirectorFirstName("");
+                      setDirectorLastName("");
+                    }}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={directorSearch}
+                    onChange={(e) => setDirectorSearch(e.target.value)}
+                    onFocus={() => setShowDirectorResults(true)}
+                    onBlur={() => setTimeout(() => setShowDirectorResults(false), 200)}
+                    placeholder="Search director by name..."
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDirectorForm(true)}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                  >
+                    + New
+                  </button>
+                </div>
+                {showDirectorResults && directorResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {directorResults.map((director, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => selectDirector(director)}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white"
+                      >
+                        {director.firstName} {director.lastName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Actors */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Actors
+            </label>
+
+            {/* Selected actors */}
+            {selectedActors.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedActors.map((actor, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full flex items-center gap-2"
+                  >
+                    {actor.firstName} {actor.lastName}
+                    <button
+                      type="button"
+                      onClick={() => removeActor(actor)}
+                      className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Add new actor form */}
+            {showActorForm ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={actorFirstName}
+                    onChange={(e) => setActorFirstName(e.target.value)}
+                    placeholder="First name"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={actorLastName}
+                    onChange={(e) => setActorLastName(e.target.value)}
+                    placeholder="Last name"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={addNewActor}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowActorForm(false);
+                      setActorFirstName("");
+                      setActorLastName("");
+                    }}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={actorSearch}
+                    onChange={(e) => setActorSearch(e.target.value)}
+                    onFocus={() => setShowActorResults(true)}
+                    onBlur={() => setTimeout(() => setShowActorResults(false), 200)}
+                    placeholder="Search actors by name..."
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowActorForm(true)}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                  >
+                    + New
+                  </button>
+                </div>
+                {showActorResults && actorResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {actorResults.map((actor, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => addActor(actor)}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white"
+                      >
+                        {actor.firstName} {actor.lastName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

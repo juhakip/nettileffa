@@ -80,7 +80,7 @@ export function MovieCard({ movie, searchTerm }: MovieCardProps) {
             key={genre}
             className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full"
           >
-            {genre}
+            <HighlightText text={genre} highlight={searchTerm} />
           </span>
         ))}
       </div>
@@ -93,14 +93,20 @@ export function MovieCard({ movie, searchTerm }: MovieCardProps) {
 
       {movie.director && (
         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-          <span className="font-semibold">Director:</span> {movie.director.firstName} {movie.director.lastName}
+          <span className="font-semibold">Director:</span>{" "}
+          <HighlightText text={`${movie.director.firstName} ${movie.director.lastName}`} highlight={searchTerm} />
         </p>
       )}
 
       {movie.actors && movie.actors.length > 0 && (
         <p className="text-xs text-gray-600 dark:text-gray-400">
           <span className="font-semibold">Cast:</span>{" "}
-          {movie.actors.map((actor) => `${actor.firstName} ${actor.lastName}`).join(", ")}
+          {movie.actors.map((actor, index) => (
+            <span key={`${actor.firstName}-${actor.lastName}`}>
+              {index > 0 && ", "}
+              <HighlightText text={`${actor.firstName} ${actor.lastName}`} highlight={searchTerm} />
+            </span>
+          ))}
         </p>
       )}
     </div>

@@ -227,6 +227,62 @@ def test_get_genres():
     assert set(genres) == {"Action", "Comedy", "Drama"}
 
 
+def test_search_genres_actors_directors():
+    """Test searching by genre, actor, and director names."""
+    # Add movie with actor, director, and genres
+    client.post(
+        "/api/movies",
+        json={
+            "name": "Space Adventure",
+            "year": 2020,
+            "age_limit": 12,
+            "rating": 4,
+            "genres": ["Sci-Fi", "Thriller"],
+            "actors": [
+                {"firstName": "Tom", "lastName": "Hanks"},
+                {"firstName": "Meryl", "lastName": "Streep"},
+            ],
+            "director": {"firstName": "Steven", "lastName": "Spielberg"},
+        },
+    )
+
+    # Search by genre
+    response = client.get("/api/movies?search=sci-fi")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["name"] == "Space Adventure"
+
+    # Search by actor first name
+    response = client.get("/api/movies?search=tom")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+    # Search by actor last name
+    response = client.get("/api/movies?search=streep")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+    # Search by director first name
+    response = client.get("/api/movies?search=steven")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+    # Search by director last name
+    response = client.get("/api/movies?search=spielberg")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+    # Search for non-existent
+    response = client.get("/api/movies?search=notfound")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+
 def test_create_movie_validation():
     """Test validation on movie creation."""
     # Missing required field

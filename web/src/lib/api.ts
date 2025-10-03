@@ -93,3 +93,35 @@ export async function getGenres(): Promise<string[]> {
 
   return response.json();
 }
+
+/**
+ * Search actors by name
+ */
+export async function searchActors(search: string): Promise<{ firstName: string; lastName: string }[]> {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+
+  const response = await fetch(`${API_BASE_URL}/api/actors?${params}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch actors: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Search directors by name
+ */
+export async function searchDirectors(search: string): Promise<{ firstName: string; lastName: string }[]> {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+
+  const response = await fetch(`${API_BASE_URL}/api/directors?${params}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch directors: ${response.statusText}`);
+  }
+
+  return response.json();
+}

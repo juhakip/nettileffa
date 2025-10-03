@@ -51,7 +51,7 @@ def get_movies(
     """
     Get movies with optional search, sorting, and pagination.
 
-    - **search**: Optional search term for name/synopsis
+    - **search**: Optional search term for name/synopsis/genres/actors/directors
     - **sort**: Sort by year, rating, or name (default: year)
     - **order**: Sort order asc or desc (default: desc)
     - **limit**: Number of results per page (default: 20, max: 100)
@@ -62,12 +62,17 @@ def get_movies(
     # Apply search filter
     if search:
         search_term = f"%{search}%"
-        query = query.filter(
+        query = query.outerjoin(Movie.genres).outerjoin(Movie.actors).outerjoin(Movie.director).filter(
             or_(
                 Movie.name.ilike(search_term),
                 Movie.synopsis.ilike(search_term),
+                Genre.name.ilike(search_term),
+                Actor.first_name.ilike(search_term),
+                Actor.last_name.ilike(search_term),
+                Director.first_name.ilike(search_term),
+                Director.last_name.ilike(search_term),
             )
-        )
+        ).distinct()
 
     # Get total count before pagination
     total = query.count()
@@ -246,3 +251,39 @@ def get_genres(db: Session = Depends(get_db)):
     """Get all unique genre names."""
     genres = db.query(Genre.name).order_by(Genre.name).all()
     return [genre[0] for genre in genres]
+
+
+@app.get("/api/actors")
+def get_actors(search: Optional[str] = None, db: Session = Depends(get_db)):
+    """Get all actors with optional name search."""
+    query = db.query(Actor)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Actor.first_name.ilike(search_term),
+                Actor.last_name.ilike(search_term),
+            )
+        )
+
+    actors = query.order_by(Actor.last_name, Actor.first_name).limit(20).all()
+    return [{"firstName": a.first_name, "lastName": a.last_name} for a in actors]
+
+
+@app.get("/api/directors")
+def get_directors(search: Optional[str] = None, db: Session = Depends(get_db)):
+    """Get all directors with optional name search."""
+    query = db.query(Director)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Director.first_name.ilike(search_term),
+                Director.last_name.ilike(search_term),
+            )
+        )
+
+    directors = query.order_by(Director.last_name, Director.first_name).limit(20).all()
+    return [{"firstName": d.first_name, "lastName": d.last_name} for d in directors]
